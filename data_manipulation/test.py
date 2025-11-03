@@ -7,8 +7,11 @@ import pandas as pd
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.model_selection import train_test_split
 
+import config
+from config import MODEL_STRUCTURE
 
 # 1. Load dataset
+#df = pd.read_csv("faults.csv")
 #df = pd.read_csv("faults_reduced.csv")
 df = pd.read_csv("faults_clean_normalized.csv")
 
@@ -50,17 +53,18 @@ test_loader = DataLoader(test_ds, batch_size=batch_size)
 class SteelNet(nn.Module):
     def __init__(self, input_dim, output_dim):
         super().__init__()
-        self.net = nn.Sequential(
-            nn.Linear(input_dim, 64),
+        self.net =nn.Sequential(
+            nn.Linear(input_dim, 128),
+            nn.BatchNorm1d(128),
             nn.ReLU(),
             nn.Dropout(0.2),
 
-            nn.Linear(64, 32),
+            nn.Linear(128, 64),
+            nn.BatchNorm1d(64),
             nn.ReLU(),
             nn.Dropout(0.1),
 
-
-            nn.Linear(32, output_dim),
+            nn.Linear(64, output_dim),
             nn.Sigmoid()
         )
 
@@ -82,8 +86,11 @@ optimizer = optim.Adam(model.parameters(), lr=0.001)
 
 # 6. Training loop
 epochs = 100_000
-
+best_acc =0
+best_val_acc = 0
 for epoch in range(epochs):
+
+
     model.train()
     total_loss = 0
     correct = 0
@@ -109,10 +116,15 @@ for epoch in range(epochs):
             val_acc += (preds.argmax(1) == yb).sum().item()
     val_loss /= len(val_loader.dataset)
     val_acc /= len(val_loader.dataset)
+
+    if best_val_acc < val_acc:
+        best_val_acc = val_acc
+        best_acc = acc
+
     if epoch %100 == 0:
-        print(f"Epoch {epoch+1:02d} | Train Acc: {acc:.3f} | Val Acc: {val_acc:.3f}")
-
-
+        print(f"Epoch {epoch:02d} | Train Acc: {best_acc:.3f} | Val Acc: {best_val_acc:.3f}")
+        best_acc = 0
+        best_val_acc = 0
 # 7. Evaluate on test set
 model.eval()
 test_correct = 0
@@ -121,5 +133,3 @@ with torch.no_grad():
         xb, yb = xb.to(device), yb.to(device)
         preds = model(xb)
         test_correct += (preds.argmax(1) == yb).sum().item()
-
-print(f"✅ Test accuracy: {test_correct / len(test_loader.dataset):.3f}")
