@@ -18,14 +18,12 @@ fault_columns = ['V28', 'V29', 'V30', 'V31', 'V32', 'V33']
 criterion = None
 
 if BINARY_CLASSIFICATION:
-    # Binary classification: faulty (1) vs non-faulty (0)
-    # If dataset only has faulty samples, you could add synthetic OKs elsewhere.
+
     df["target"] = (df[fault_columns].sum(axis=1) > 0).astype(int)
     X = df.drop(columns=fault_columns + ["Class", "target"], errors="ignore")
     y = df["target"]
     criterion = nn.BCELoss()
 else:
-    # Multiclass classification: identify which fault type
     criterion = nn.CrossEntropyLoss()
     if "Class" in df.columns:
         df.drop(["Class"], axis=1, inplace=True)
@@ -33,15 +31,16 @@ else:
     df["target"] = df[fault_columns].idxmax(axis=1)
     X = df.drop(columns=fault_columns + ["target"])
     y = df["target"]
-# -----------------------------------------------------------
 
-# --------------- NORMALIZATION + ENCODING -----------------
+
+
+
+
 scaler = StandardScaler()
 X_scaled = scaler.fit_transform(X)
 
 encoder = LabelEncoder()
 y_encoded = encoder.fit_transform(y)
-# -----------------------------------------------------------
 
 X_train, X_temp, y_train, y_temp = train_test_split(X_scaled, y_encoded, test_size=0.3, random_state=42, stratify=y_encoded)
 X_val, X_test, y_val, y_test = train_test_split(X_temp, y_temp, test_size=0.5, random_state=42, stratify=y_temp)
