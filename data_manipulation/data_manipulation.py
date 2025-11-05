@@ -6,7 +6,7 @@ from sklearn.preprocessing import StandardScaler
 
 
 # 1. Load dataset
-input_file = "faults.csv"
+input_file = "../faults.csv"
 df = pd.read_csv(input_file)
 print(f"✅ Loaded dataset with shape: {df.shape}")
 

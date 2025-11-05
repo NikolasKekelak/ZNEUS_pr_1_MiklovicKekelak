@@ -7,27 +7,41 @@ import pandas as pd
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.model_selection import train_test_split
 
-import config
-from config import MODEL_STRUCTURE
+from config import *
 
 # 1. Load dataset
-#df = pd.read_csv("faults.csv")
-#df = pd.read_csv("faults_reduced.csv")
-df = pd.read_csv("faults_clean_normalized.csv")
+df = pd.read_csv("../faults.csv")
 
-# For multi-class case (7 fault types)
-fault_columns = ['Pastry', 'Z_Scratch', 'K_Scatch', 'Stains', 'Dirtiness', 'Bumps', 'Other_Faults']
-df['target'] = df[fault_columns].idxmax(axis=1)  # pick column with value 1
+# --------------- CLASSIFICATION MODE SWITCH ---------------
+fault_columns = ['V28', 'V29', 'V30', 'V31', 'V32', 'V33']
 
-# 2. Preprocessing
-X = df.drop(columns=fault_columns + ['target'])
-y = df['target']
+criterion = None
 
+if BINARY_CLASSIFICATION:
+    # Binary classification: faulty (1) vs non-faulty (0)
+    # If dataset only has faulty samples, you could add synthetic OKs elsewhere.
+    df["target"] = (df[fault_columns].sum(axis=1) > 0).astype(int)
+    X = df.drop(columns=fault_columns + ["Class", "target"], errors="ignore")
+    y = df["target"]
+    criterion = nn.BCELoss()
+else:
+    # Multiclass classification: identify which fault type
+    criterion = nn.CrossEntropyLoss()
+    if "Class" in df.columns:
+        df.drop(["Class"], axis=1, inplace=True)
+
+    df["target"] = df[fault_columns].idxmax(axis=1)
+    X = df.drop(columns=fault_columns + ["target"])
+    y = df["target"]
+# -----------------------------------------------------------
+
+# --------------- NORMALIZATION + ENCODING -----------------
 scaler = StandardScaler()
 X_scaled = scaler.fit_transform(X)
 
 encoder = LabelEncoder()
 y_encoded = encoder.fit_transform(y)
+# -----------------------------------------------------------
 
 X_train, X_temp, y_train, y_temp = train_test_split(X_scaled, y_encoded, test_size=0.3, random_state=42, stratify=y_encoded)
 X_val, X_test, y_val, y_test = train_test_split(X_temp, y_temp, test_size=0.5, random_state=42, stratify=y_temp)
@@ -40,48 +54,45 @@ X_test = torch.tensor(X_test, dtype=torch.float32)
 y_test = torch.tensor(y_test, dtype=torch.long)
 
 # 3. Dataloaders
-batch_size = 64
+
 train_ds = TensorDataset(X_train, y_train)
 val_ds = TensorDataset(X_val, y_val)
 test_ds = TensorDataset(X_test, y_test)
 
-train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True)
-val_loader = DataLoader(val_ds, batch_size=batch_size)
-test_loader = DataLoader(test_ds, batch_size=batch_size)
+train_loader = DataLoader(train_ds, batch_size=BATCH_SIZE, shuffle=True)
+val_loader = DataLoader(val_ds, batch_size=BATCH_SIZE)
+test_loader = DataLoader(test_ds, batch_size=BATCH_SIZE)
 
 # 4. Define neural network
 class SteelNet(nn.Module):
-    def __init__(self, input_dim, output_dim):
+    def __init__(self, input_dim, output_dim, binary=False):
         super().__init__()
-        self.net =nn.Sequential(
-            nn.Linear(input_dim, 128),
-            nn.BatchNorm1d(128),
-            nn.ReLU(),
-            nn.Dropout(0.2),
-
-            nn.Linear(128, 64),
-            nn.BatchNorm1d(64),
-            nn.ReLU(),
-            nn.Dropout(0.1),
-
-            nn.Linear(64, output_dim),
-            nn.Sigmoid()
-        )
+        layers = []
+        if BINARY_CLASSIFICATION:
+            layers = MODEL_STRUCTURE_BINARY(input_dim,output_dim)
+        else:
+            layers = MODEL_STRUCTURE_MULTICLASS(input_dim,output_dim)
+        self.net = nn.Sequential(*layers)
 
     def forward(self, x):
         return self.net(x)
+
 
 
 # 5. Setup training
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
-model = SteelNet(X_train.shape[1], output_dim=len(encoder.classes_)).to(device)
-criterion = nn.CrossEntropyLoss()
+model = None
+
+if BINARY_CLASSIFICATION:
+    model = SteelNet(X_train.shape[1], 1).to(device)   # one output neuron
+else:
+    model = SteelNet(X_train.shape[1], len(encoder.classes_)).to(device)
 
 #optimizer = optim.SGD(model.parameters(), lr=0.001)
-#optimizer = optim.RMSprop(model.parameters(), lr=0.001)
-optimizer = optim.Adam(model.parameters(), lr=0.001)
+optimizer = optim.RMSprop(model.parameters(), lr=0.001)
+#optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
 
 # 6. Training loop
@@ -125,6 +136,7 @@ for epoch in range(epochs):
         print(f"Epoch {epoch:02d} | Train Acc: {best_acc:.3f} | Val Acc: {best_val_acc:.3f}")
         best_acc = 0
         best_val_acc = 0
+
 # 7. Evaluate on test set
 model.eval()
 test_correct = 0
@@ -132,4 +144,15 @@ with torch.no_grad():
     for xb, yb in test_loader:
         xb, yb = xb.to(device), yb.to(device)
         preds = model(xb)
-        test_correct += (preds.argmax(1) == yb).sum().item()
+
+        if BINARY_CLASSIFICATION:
+            preds = preds.squeeze()
+            predicted = (preds > 0.5).int()
+            test_correct += (predicted == yb.int()).sum().item()
+        else:
+            test_correct += (preds.argmax(1) == yb).sum().item()
+
+test_acc = test_correct / len(test_loader.dataset)
+print(f"✅ Test Accuracy: {test_acc:.3f}")
+
+
