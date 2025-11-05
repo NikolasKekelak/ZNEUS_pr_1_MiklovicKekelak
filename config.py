@@ -83,5 +83,27 @@ run = wandb.init(
 #==============================================================#
 
 
+#===| Sweep Config |===#
+#==============================================================#
+sweep_config = {
+    'method': 'bayes',
+    'metric': {
+        'name': 'validation_acc',   # what metric W&B should maximize
+        'goal': 'maximize'
+    },
+    'parameters': {
+        'learning_rate': {
+            'values': [0.0005, 0.001, 0.002, 0.005]
+        },
+        'batch_size': {
+            'values': [32, 64, 128]
+        },
+        'dropout': {
+            'values': [0.1, 0.2, 0.3]
+        }
+    }
+}
+#==============================================================#
+
 
 
