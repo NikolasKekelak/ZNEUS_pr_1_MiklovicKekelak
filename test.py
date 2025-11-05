@@ -101,21 +101,24 @@ if BINARY_CLASSIFICATION:
 else:
     model = SteelNet(X_train.shape[1], len(encoder.classes_)).to(device)
 
+best_model = None
 #optimizer = optim.SGD(model.parameters(), lr=0.001)
 #optimizer = optim.RMSprop(model.parameters(), lr=0.001)
 optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
 
 # 6. Training loop
-epochs = 100_000
 best_acc =0
 best_val_acc = 0
-for epoch in range(epochs):
+train_losses, val_losses = [], []
+train_accs, val_accs = [], []
 
-
+for epoch in range(MAX_EPOCHS):
+    # --- TRAINING ---
     model.train()
     total_loss = 0
     correct = 0
+
     for xb, yb in train_loader:
         xb, yb = xb.to(device), yb.to(device)
         optimizer.zero_grad()
@@ -127,27 +130,49 @@ for epoch in range(epochs):
         total_loss += loss.item() * xb.size(0)
         correct += (preds.argmax(1) == yb).sum().item()
 
-    acc = correct / len(train_loader.dataset)
-    val_loss, val_acc = 0, 0
+    train_loss = total_loss / len(train_loader.dataset)
+    train_acc = correct / len(train_loader.dataset)
+
+    # --- VALIDATION ---
     model.eval()
+    val_loss, val_correct = 0, 0
     with torch.no_grad():
         for xb, yb in val_loader:
             xb, yb = xb.to(device), yb.to(device)
             preds = model(xb)
             val_loss += criterion(preds, yb).item() * xb.size(0)
-            val_acc += (preds.argmax(1) == yb).sum().item()
+            val_correct += (preds.argmax(1) == yb).sum().item()
+
     val_loss /= len(val_loader.dataset)
-    val_acc /= len(val_loader.dataset)
+    val_acc = val_correct / len(val_loader.dataset)
 
-    if best_val_acc < val_acc:
+    # --- LOGGING ---
+    train_losses.append(train_loss)
+    val_losses.append(val_loss)
+    train_accs.append(train_acc)
+    val_accs.append(val_acc)
+
+    run.log({
+        "training_loss": train_loss,
+        "validation_loss": val_loss,
+        "training_acc": train_acc,
+        "validation_acc": val_acc,
+        "best_validation_acc": best_val_acc
+    })
+
+    # --- BEST MODEL TRACKING ---
+    if val_acc > best_val_acc:
         best_val_acc = val_acc
-        best_acc = acc
+        best_acc = max(best_acc, train_acc)
+        best_model = model
 
-    if epoch %100 == 0:
-        print(f"Epoch {epoch:02d} | Train Acc: {best_acc:.3f} | Val Acc: {best_val_acc:.3f}")
+    # --- PRINT PROGRESS ---
+    if epoch % 100 == 0:
+        print(f"Epoch {epoch:04d} | Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f} | "
+              f"Train Acc: {train_acc:.3f} | Val Acc: {val_acc:.3f}")
 
 # 7. Evaluate on test set
-model.eval()
+best_model.eval()
 test_correct = 0
 with torch.no_grad():
     for xb, yb in test_loader:
