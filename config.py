@@ -4,21 +4,31 @@ import torch.optim as optim
 
 
 SEED = 42
+#===| Wand db related |===#
+#==============================================================#
 
-#Dataset related
+
+
+#==============================================================#
+
+#===| Dataset related |===#
+#==============================================================#
+
 INPUT_FILE = "faults.csv"
 DATA_SPLIT = 0.70 # DATA_SPILT is how much % is training set
 FAULT_COLUMNS = ['V28', 'V29', 'V30', 'V31', 'V32', 'V33', 'Class']
+#==============================================================#
+
+
+#===| Model related |===#
+#==============================================================#
 BINARY_CLASSIFICATION = False
-
-#Model related
-
 MAX_EPOCHS = 10_000
 MULTCLASS_LOSS = ""
 BINARY_LOSS = "bceLoss"
 
 BATCH_SIZE = 64
-LEARNING_RATE = 1e-3
+LEARNING_RATE = 3e-3
 
 def MODEL_STRUCTURE_MULTICLASS(input_dim, output_dim):
     return nn.Sequential(
@@ -51,3 +61,4 @@ def MODEL_STRUCTURE_BINARY(input_dim, output_dim):
             nn.Linear(64, output_dim),
             nn.Sigmoid()
         )
+#==============================================================#
