@@ -1,4 +1,4 @@
-import torch.nn as nn
+from header_libs import *
 
 SEED = 42
 
@@ -8,9 +8,9 @@ INPUT_FILE = "faults.csv"
 DATA_SPLIT = 0.70 # DATA_SPILT is how much % is training set
 FAULT_COLUMNS = ['V28', 'V29', 'V30', 'V31', 'V32', 'V33', 'Class']
 
-#Normalisation
+#Normalisation/scaler
 SCALER_TYPE = "minmax"  # options: 'standard', 'minmax', 'robust', 'maxabs', 'quantile', 'power'
-MIN_MAX_INTERVAL = (0,1) # len pre moznost minmax
+MIN_MAX_INTERVAL = (0,1) # ma efekt len pre moznost minmax
 #==============================================================#
 
 
@@ -20,7 +20,7 @@ BINARY_CLASSIFICATION = False
 MAX_EPOCHS = 5_000
 BATCH_SIZE = 64
 LEARNING_RATE = 1e-3
-
+OPTIMIZER = "adam" # options: 'adam' , 'sgd' , 'rms'
 
 def MODEL_STRUCTURE_MULTICLASS(input_dim, output_dim):
     return nn.Sequential(

@@ -1,18 +1,9 @@
-import torch
-import torch.nn as nn
-import torch.optim as optim
-from torch.utils.data import TensorDataset, DataLoader, random_split
-import pandas as pd
-from sklearn.preprocessing import StandardScaler, LabelEncoder
-from sklearn.preprocessing import (
-    StandardScaler, MinMaxScaler, RobustScaler,
-    MaxAbsScaler, QuantileTransformer, PowerTransformer
-)
-from sklearn.model_selection import train_test_split
-import random
-import numpy as np
+from header_libs import *
+
 from config import *
 from wandb_config import *
+from help_functions import *
+from Model import *
 
 #===| Seed preparation |===#
 #==============================================================#
@@ -26,7 +17,6 @@ torch.backends.cudnn.benchmark = False
 #==============================================================#
 
 
-# 1. Load dataset
 df = pd.read_csv("../faults_reduced.csv")
 
 # --------------- CLASSIFICATION MODE SWITCH ---------------
@@ -47,22 +37,6 @@ else:
     df["target"] = df[fault_columns].idxmax(axis=1)
     X = df.drop(columns=fault_columns + ["target"])
     y = df["target"]
-
-def get_scaler():
-    if SCALER_TYPE == "standard":
-        return StandardScaler()
-    elif SCALER_TYPE == "minmax":
-        return MinMaxScaler(feature_range=MIN_MAX_INTERVAL)
-    elif SCALER_TYPE == "robust":
-        return RobustScaler()
-    elif SCALER_TYPE == "maxabs":
-        return MaxAbsScaler()
-    elif SCALER_TYPE == "quantile":
-        return QuantileTransformer(output_distribution='uniform')
-    elif SCALER_TYPE == "power":
-        return PowerTransformer()
-    else:
-        raise ValueError(f"Unknown SCALER_TYPE: {SCALER_TYPE}")
 
 # Create and fit
 scaler = get_scaler()
@@ -92,23 +66,8 @@ train_loader = DataLoader(train_ds, batch_size=BATCH_SIZE, shuffle=True)
 val_loader = DataLoader(val_ds, batch_size=BATCH_SIZE)
 test_loader = DataLoader(test_ds, batch_size=BATCH_SIZE)
 
-# 4. Define neural network
-class SteelNet(nn.Module):
-    def __init__(self, input_dim, output_dim, binary=False):
-        super().__init__()
-        layers = []
-        if BINARY_CLASSIFICATION:
-            layers = MODEL_STRUCTURE_BINARY(input_dim,output_dim)
-        else:
-            layers = MODEL_STRUCTURE_MULTICLASS(input_dim,output_dim)
-        self.net = nn.Sequential(*layers)
+#===| Preparations |===#
 
-    def forward(self, x):
-        return self.net(x)
-
-
-
-# 5. Setup training
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
@@ -119,20 +78,18 @@ if BINARY_CLASSIFICATION:
 else:
     model = SteelNet(X_train.shape[1], len(encoder.classes_)).to(device)
 
+
 best_model = None
-#optimizer = optim.SGD(model.parameters(), lr=0.001)
-#optimizer = optim.RMSprop(model.parameters(), lr=0.001)
-optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
+optimizer = get_optimizer(model)
 
 
-# 6. Training loop
+#===| Training |===#
 best_acc =0
 best_val_acc = 0
 train_losses, val_losses = [], []
 train_accs, val_accs = [], []
 
 for epoch in range(MAX_EPOCHS):
-    # --- TRAINING ---
     model.train()
     total_loss = 0
     correct = 0
@@ -206,5 +163,3 @@ with torch.no_grad():
 
 test_acc = test_correct / len(test_loader.dataset)
 print(f"✅ Test Accuracy: {test_acc:.3f}")
-
-
