@@ -20,6 +20,7 @@ torch.backends.cudnn.benchmark = False
 df = pd.read_csv("../faults_reduced.csv")
 
 # --------------- CLASSIFICATION MODE SWITCH ---------------
+
 fault_columns = ['V28', 'V29', 'V30', 'V31', 'V32', 'V33']
 
 criterion = None
@@ -83,16 +84,13 @@ best_model = None
 optimizer = get_optimizer(model)
 
 
-#===| Training |===#
-best_acc =0
+# === Training === #
 best_val_acc = 0
 train_losses, val_losses = [], []
-train_accs, val_accs = [], []
 
 for epoch in range(MAX_EPOCHS):
     model.train()
-    total_loss = 0
-    correct = 0
+    total_loss, correct = 0, 0
 
     for xb, yb in train_loader:
         xb, yb = xb.to(device), yb.to(device)
@@ -103,63 +101,32 @@ for epoch in range(MAX_EPOCHS):
         optimizer.step()
 
         total_loss += loss.item() * xb.size(0)
-        correct += (preds.argmax(1) == yb).sum().item()
+        if not BINARY_CLASSIFICATION:
+            correct += (preds.argmax(1) == yb).sum().item()
+        else:
+            correct += ((preds.squeeze() > 0.5).int() == yb.int()).sum().item()
 
     train_loss = total_loss / len(train_loader.dataset)
     train_acc = correct / len(train_loader.dataset)
 
-    # --- VALIDATION ---
-    model.eval()
-    val_loss, val_correct = 0, 0
-    with torch.no_grad():
-        for xb, yb in val_loader:
-            xb, yb = xb.to(device), yb.to(device)
-            preds = model(xb)
-            val_loss += criterion(preds, yb).item() * xb.size(0)
-            val_correct += (preds.argmax(1) == yb).sum().item()
+    val_loss, val_acc = evaluate(model, val_loader, criterion, device, BINARY_CLASSIFICATION)
 
-    val_loss /= len(val_loader.dataset)
-    val_acc = val_correct / len(val_loader.dataset)
+    run.log({ "training_loss": train_loss,
+              "validation_loss": val_loss,
+              "training_acc": train_acc,
+              "validation_acc": val_acc,
+              "best_validation_acc": best_val_acc })
 
-    # --- LOGGING ---
-    train_losses.append(train_loss)
-    val_losses.append(val_loss)
-    train_accs.append(train_acc)
-    val_accs.append(val_acc)
-
-    run.log({
-        "training_loss": train_loss,
-        "validation_loss": val_loss,
-        "training_acc": train_acc,
-        "validation_acc": val_acc,
-        "best_validation_acc": best_val_acc
-    })
-
-    # --- BEST MODEL TRACKING ---
     if val_acc > best_val_acc:
         best_val_acc = val_acc
-        best_acc = max(best_acc, train_acc)
-        best_model = model
+        best_model = model.state_dict().copy()
 
-    # --- PRINT PROGRESS ---
     if epoch % 100 == 0:
-        print(f"Epoch {epoch:04d} | Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f} | "
-              f"Train Acc: {train_acc:.3f} | Val Acc: {val_acc:.3f}")
+        print(f"Epoch {epoch:04d} | "
+              f"Train: loss={train_loss:.4f}, acc={train_acc:.3f} | "
+              f"Val: loss={val_loss:.4f}, acc={val_acc:.3f}")
 
-# 7. Evaluate on test set
-best_model.eval()
-test_correct = 0
-with torch.no_grad():
-    for xb, yb in test_loader:
-        xb, yb = xb.to(device), yb.to(device)
-        preds = model(xb)
-
-        if BINARY_CLASSIFICATION:
-            preds = preds.squeeze()
-            predicted = (preds > 0.5).int()
-            test_correct += (predicted == yb.int()).sum().item()
-        else:
-            test_correct += (preds.argmax(1) == yb).sum().item()
-
-test_acc = test_correct / len(test_loader.dataset)
+# === Test Evaluation === #
+model.load_state_dict(best_model)
+test_loss, test_acc = evaluate(model, test_loader, criterion, device, BINARY_CLASSIFICATION)
 print(f"✅ Test Accuracy: {test_acc:.3f}")

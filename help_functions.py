@@ -31,3 +31,25 @@ def get_optimizer(model, type = OPTIMIZER, lr = LEARNING_RATE):
         raise ValueError(f"Unknown type: {type}")
 
 #==============================================================#
+
+def evaluate(model, loader, criterion, device, binary=False):
+    model.eval()
+    total_loss, correct = 0, 0
+    with torch.no_grad():
+        for xb, yb in loader:
+            xb, yb = xb.to(device), yb.to(device)
+            preds = model(xb)
+            loss = criterion(preds, yb)
+            total_loss += loss.item() * xb.size(0)
+
+            if binary:
+                predicted = (preds.squeeze() > 0.5).int()
+            else:
+                predicted = preds.argmax(1)
+            correct += (predicted == yb).sum().item()
+
+    loss = total_loss / len(loader.dataset)
+    acc = correct / len(loader.dataset)
+    return loss, acc
+
+#==============================================================#
