@@ -10,8 +10,8 @@ run = wandb.init(
     # Track hyperparameters and run metadata.
     config={
         "seed": SEED,
-        "goal": "Porovnat rozne typy normalizacie pre multiclass",
-        "testing_batch": "Norms",
+        "goal": "Porovnat rozne typy dropoutu v rammci modelu",
+        "testing_batch": "DropiTropiVripiTripi",
         "architecture": "128->64",
         "dataset": "Steel Plates Fault",
         "epochs": MAX_EPOCHS
