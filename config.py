@@ -1,20 +1,16 @@
-import torch
 import torch.nn as nn
-import torch.optim as optim
-import wandb
-
 
 SEED = 42
 
-
-
-
 #===| Dataset related |===#
 #==============================================================#
-
 INPUT_FILE = "faults.csv"
 DATA_SPLIT = 0.70 # DATA_SPILT is how much % is training set
 FAULT_COLUMNS = ['V28', 'V29', 'V30', 'V31', 'V32', 'V33', 'Class']
+
+#Normalisation
+SCALER_TYPE = "minmax"  # options: 'standard', 'minmax', 'robust', 'maxabs', 'quantile', 'power'
+MIN_MAX_INTERVAL = (0,1) # len pre moznost minmax
 #==============================================================#
 
 
@@ -22,12 +18,9 @@ FAULT_COLUMNS = ['V28', 'V29', 'V30', 'V31', 'V32', 'V33', 'Class']
 #==============================================================#
 BINARY_CLASSIFICATION = False
 MAX_EPOCHS = 5_000
-EXPECTED_EPOCHS = 5_000
-MULTCLASS_LOSS = ""
-BINARY_LOSS = "bceLoss"
-
 BATCH_SIZE = 64
 LEARNING_RATE = 1e-3
+
 
 def MODEL_STRUCTURE_MULTICLASS(input_dim, output_dim):
     return nn.Sequential(
@@ -61,49 +54,6 @@ def MODEL_STRUCTURE_BINARY(input_dim, output_dim):
         nn.Sigmoid()
     )
 
-
 #==============================================================#
-
-
-#===| Wand db related |===#
-#==============================================================#
-run = wandb.init(
-    entity="nikolaskekelak-fiit-stu",
-    project="ZNEUS_1",
-    # Track hyperparameters and run metadata.
-    config={
-        "seed": SEED,
-        "goal": "batchNorm",
-        "testing_batch": "batchNorm",
-        "architecture": "128->64",
-        "dataset": "Steel Plates Fault",
-        "epochs": EXPECTED_EPOCHS,
-    },
-)
-#==============================================================#
-
-
-#===| Sweep Config |===#
-#==============================================================#
-sweep_config = {
-    'method': 'bayes',
-    'metric': {
-        'name': 'validation_acc',   # what metric W&B should maximize
-        'goal': 'maximize'
-    },
-    'parameters': {
-        'learning_rate': {
-            'values': [0.0005, 0.001, 0.002, 0.005]
-        },
-        'batch_size': {
-            'values': [32, 64, 128]
-        },
-        'dropout': {
-            'values': [0.1, 0.2, 0.3]
-        }
-    }
-}
-#==============================================================#
-
 
 

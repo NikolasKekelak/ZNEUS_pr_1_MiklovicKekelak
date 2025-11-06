@@ -4,10 +4,15 @@ import torch.optim as optim
 from torch.utils.data import TensorDataset, DataLoader, random_split
 import pandas as pd
 from sklearn.preprocessing import StandardScaler, LabelEncoder
+from sklearn.preprocessing import (
+    StandardScaler, MinMaxScaler, RobustScaler,
+    MaxAbsScaler, QuantileTransformer, PowerTransformer
+)
 from sklearn.model_selection import train_test_split
 import random
 import numpy as np
 from config import *
+from wandb_config import *
 
 #===| Seed preparation |===#
 #==============================================================#
@@ -30,7 +35,6 @@ fault_columns = ['V28', 'V29', 'V30', 'V31', 'V32', 'V33']
 criterion = None
 
 if BINARY_CLASSIFICATION:
-
     df["target"] = (df[fault_columns].sum(axis=1) > 0).astype(int)
     X = df.drop(columns=fault_columns + ["Class", "target"], errors="ignore")
     y = df["target"]
@@ -44,12 +48,26 @@ else:
     X = df.drop(columns=fault_columns + ["target"])
     y = df["target"]
 
+def get_scaler():
+    if SCALER_TYPE == "standard":
+        return StandardScaler()
+    elif SCALER_TYPE == "minmax":
+        return MinMaxScaler(feature_range=MIN_MAX_INTERVAL)
+    elif SCALER_TYPE == "robust":
+        return RobustScaler()
+    elif SCALER_TYPE == "maxabs":
+        return MaxAbsScaler()
+    elif SCALER_TYPE == "quantile":
+        return QuantileTransformer(output_distribution='uniform')
+    elif SCALER_TYPE == "power":
+        return PowerTransformer()
+    else:
+        raise ValueError(f"Unknown SCALER_TYPE: {SCALER_TYPE}")
 
-
-
-
-scaler = StandardScaler()
+# Create and fit
+scaler = get_scaler()
 X_scaled = scaler.fit_transform(X)
+
 
 encoder = LabelEncoder()
 y_encoded = encoder.fit_transform(y)
