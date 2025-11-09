@@ -1,8 +1,5 @@
-from header_libs import *
-
-from config import *
-from wandb_config import *
-from help_functions import *
+from config.wandb_config import *
+from config.help_functions import *
 from Model import *
 
 #===| Seed preparation |===#
@@ -83,8 +80,7 @@ else:
 best_model = None
 optimizer = get_optimizer(model)
 
-
-# === Training === #
+#===| Training |===#
 best_val_acc = 0
 train_losses, val_losses = [], []
 
@@ -109,13 +105,17 @@ for epoch in range(MAX_EPOCHS):
     train_loss = total_loss / len(train_loader.dataset)
     train_acc = correct / len(train_loader.dataset)
 
-    val_loss, val_acc = evaluate(model, val_loader, criterion, device, BINARY_CLASSIFICATION)
+    val_loss, val_acc, prec, rec, f1 = evaluate(model, val_loader, criterion, device, BINARY_CLASSIFICATION)
 
     run.log({ "training_loss": train_loss,
               "validation_loss": val_loss,
               "training_acc": train_acc,
               "validation_acc": val_acc,
-              "best_validation_acc": best_val_acc })
+              "best_validation_acc": best_val_acc,
+              "precission" : prec,
+              "recall" : rec,
+              "f1" : f1,
+        })
 
     if val_acc > best_val_acc:
         best_val_acc = val_acc

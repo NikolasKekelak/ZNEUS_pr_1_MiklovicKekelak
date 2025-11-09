@@ -1,6 +1,6 @@
 
 import wandb
-from config import *
+from config.config import *
 
 #===| Wand db related |===#
 #==============================================================#
