@@ -49,11 +49,8 @@ def evaluate(model, loader, criterion, device, binary=False):
             loss = criterion(preds, yb)
             total_loss += loss.item() * xb.size(0)
 
-            # --- Prediction ---
             if binary:
-                # raw logits → sigmoid → threshold
-                probs = torch.sigmoid(preds)
-                predicted = (probs > 0.5).int().view(-1)
+                predicted = (preds > 0.5).int().view(-1)
                 labels = yb.int().view(-1)
             else:
                 predicted = preds.argmax(dim=1).view(-1)

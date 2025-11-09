@@ -5,6 +5,7 @@ from config.help_functions import get_optimizer, evaluate
 class SteelNet(nn.Module):
     def __init__(self, input_dim,
                  output_dim,
+                 params,
                  binary=False,
                  optimizer: str = OPTIMIZER,
                  lr=LEARNING_RATE,
@@ -15,11 +16,25 @@ class SteelNet(nn.Module):
 
         # === Build network ===
         if self.binary:
-            self.net = MODEL_STRUCTURE_BINARY(input_dim, output_dim)
-            self.criterion = nn.BCEWithLogitsLoss()
+            self.net = MODEL_STRUCTURE_BINARY(
+                        input_dim,
+                        output_dim,
+                        h1=params["hidden1"],
+                        h2=params["hidden2"],
+                        d1=params["dropout1"],
+                        d2=params["dropout2"],
+                    )
+            self.criterion = nn.BCELoss()
 
         else:
-            self.net = MODEL_STRUCTURE_MULTICLASS(input_dim, output_dim)
+            self.net = MODEL_STRUCTURE_MULTICLASS(
+                        input_dim,
+                        output_dim,
+                        h1=params["hidden1"],
+                        h2=params["hidden2"],
+                        d1=params["dropout1"],
+                        d2=params["dropout2"],
+                    )
 
             # === Auto-compute class weights if targets are provided ===
             if targets is not None:
@@ -60,7 +75,7 @@ class SteelNet(nn.Module):
         self.optimizer.step()
 
         if self.binary:
-            predicted = (torch.sigmoid(preds) > 0.5).int()
+            predicted = (preds > 0.5).int()
             correct = (predicted == yb.int()).sum().item()
         else:
             predicted = preds.argmax(1)

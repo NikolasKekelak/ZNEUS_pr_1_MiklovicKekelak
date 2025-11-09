@@ -1,0 +1,30 @@
+method: bayes
+metric:
+  name: validation_acc
+  goal: maximize
+
+parameters:
+  optimizer:
+    values: ["adam", "sgd", "rms"]
+
+  learning_rate:
+    min: 1e-5
+    max: 1e-2
+
+  batch_size:
+    values: [32, 64, 128]
+
+  hidden1:
+    values: [64, 128, 256]
+  hidden2:
+    values: [32, 64, 128]
+
+  dropout1:
+    min: 0.0
+    max: 0.4
+  dropout2:
+    min: 0.0
+    max: 0.3
+
+  seed:
+    values: [42, 69, 1337]

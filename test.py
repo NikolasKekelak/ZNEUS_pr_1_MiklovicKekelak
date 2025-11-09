@@ -20,10 +20,9 @@ df = pd.read_csv("faults_reduced_normalized.csv")
 criterion = None
 
 if BINARY_CLASSIFICATION:
-    df["target"] = (df[FAULT_COLUMNS].sum(axis=1) > 0).astype(int)
-    X = df.drop(columns=FAULT_COLUMNS + ["Class"], errors="ignore")
-    y = df["target"]
-    criterion = nn.BCELoss()
+    X = df.drop(columns=FAULT_COLUMNS+["Class"])
+    y = df["Class"]
+
 else:
     criterion = nn.CrossEntropyLoss()
     if "Class" in df.columns:
@@ -63,12 +62,14 @@ test_loader = DataLoader(test_ds, batch_size=BATCH_SIZE)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
+print(y_train)
+
 model = None
 
 if BINARY_CLASSIFICATION:
-    model = SteelNet(X_train.shape[1], 1, binary=True).to(device)
+    model = SteelNet(X_train.shape[1], 1, PARAMS,binary=True).to(device)
 else:
-    model = SteelNet(X_train.shape[1], len(encoder.classes_), binary=False, targets=y_train ).to(device)
+    model = SteelNet(X_train.shape[1], len(encoder.classes_),PARAMS, binary=False, targets=y_train ).to(device)
 
 
 

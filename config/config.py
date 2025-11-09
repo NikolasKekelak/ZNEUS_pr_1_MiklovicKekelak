@@ -22,37 +22,46 @@ BATCH_SIZE = 64
 LEARNING_RATE = 1e-3
 OPTIMIZER = "adam" # options: 'adam' , 'sgd' , 'rms'
 
-def MODEL_STRUCTURE_MULTICLASS(input_dim, output_dim):
+PARAMS = {
+    "hidden1" : 128,
+    "hidden2" : 64,
+    "dropout1" : 0.2,
+    "dropout2" : 0.1,
+}
+
+def MODEL_STRUCTURE_BINARY(input_dim, output_dim, h1, h2, d1, d2):
     return nn.Sequential(
-        nn.Linear(input_dim, 128),
-        nn.BatchNorm1d(128),
+        nn.Linear(input_dim, h1),
+        nn.BatchNorm1d(h1),
+        nn.Dropout(d1),
         nn.ReLU(),
-        nn.Dropout(0.2),
 
-        nn.Linear(128, 64),
-        nn.BatchNorm1d(64),
+        nn.Linear(h1, h2),
+        nn.BatchNorm1d(h2),
+        nn.Dropout(d2),
         nn.ReLU(),
-        nn.Dropout(0.1),
 
-        nn.Linear(64, output_dim),
-        nn.Sigmoid()
+        nn.Linear(h2, output_dim),
+        nn.Sigmoid(),
     )
 
-def MODEL_STRUCTURE_BINARY(input_dim, output_dim):
+
+def MODEL_STRUCTURE_MULTICLASS(input_dim, output_dim, h1, h2, d1, d2):
     return nn.Sequential(
-        nn.Linear(input_dim, 128),
-        nn.BatchNorm1d(128),
-        nn.Dropout(0.2),
+        nn.Linear(input_dim, h1),
+        nn.BatchNorm1d(h1),
+        nn.Dropout(d1),
         nn.ReLU(),
 
-        nn.Linear(128, 64),
-        nn.BatchNorm1d(64),
-        nn.Dropout(0.1),
+        nn.Linear(h1, h2),
+        nn.BatchNorm1d(h2),
+        nn.Dropout(d2),
         nn.ReLU(),
 
-        nn.Linear(64, output_dim),
-        nn.Sigmoid()
+        nn.Linear(h2, output_dim),
+        nn.Sigmoid(),
     )
+
 
 #==============================================================#
 
