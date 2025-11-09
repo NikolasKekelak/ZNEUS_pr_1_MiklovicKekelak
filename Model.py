@@ -9,10 +9,11 @@ class SteelNet(nn.Module):
                  binary=False,
                  optimizer: str = OPTIMIZER,
                  lr=LEARNING_RATE,
-                 targets=None):
+                 targets=None,
+                 patience=True,):
 
         super().__init__()
-
+        self.patience = patience
         self.binary = binary
 
         # === Build network ===
@@ -116,37 +117,46 @@ class SteelNet(nn.Module):
             max_epochs,
             logger,
             logging: bool,
-            console_output : bool = True,
+            console_output: bool = True,
+            patience: int = 10  # <--- new parameter
             ):
 
         best_model_state = None
         best_val_acc = 0.0
+        epochs_no_improve = 0  # <--- counter
 
         for epoch in range(max_epochs):
 
             train_loss, train_acc = self.train_epoch(train_loader, device)
-
             val_loss, val_acc, prec, rec, f1 = self.validate_epoch(val_loader, device)
 
-            #===| 🪵 |===#
-            if(logging):
+            # 🪵 Logging
+            if logging:
                 logger.log({
-                    "best_validation_acc" : best_val_acc,
+                    "epoch": epoch,
                     "training_loss": train_loss,
                     "validation_loss": val_loss,
                     "training_acc": train_acc,
                     "validation_acc": val_acc,
                     "best_validation_acc": best_val_acc,
-                    "precission": prec,
+                    "precision": prec,
                     "recall": rec,
                     "f1": f1,
+                    "epochs_no_improve": epochs_no_improve
                 })
 
-            # ===| Save best |===#
-            if val_acc > best_val_acc:
+            # 📉 Early stopping logic
+            if val_acc > best_val_acc + 1e-6:  # small tolerance to avoid float noise
                 best_val_acc = val_acc
                 best_model_state = self.state_dict().copy()
+                epochs_no_improve = 0  # reset counter
+            else:
+                epochs_no_improve += 1
 
-        print("Neural Network stopped neural networking")
+            if epochs_no_improve >= 500 and self.patience:
+                break
+
+        print("Neural Network stopped neural networking 🧠❌")
         return best_model_state, best_val_acc
+
 

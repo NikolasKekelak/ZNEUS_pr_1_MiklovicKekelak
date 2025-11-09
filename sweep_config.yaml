@@ -2,7 +2,7 @@ program: test_sweep.py
 
 method: bayes
 metric:
-  name: validation_acc
+  name: f1
   goal: maximize
 
 parameters:

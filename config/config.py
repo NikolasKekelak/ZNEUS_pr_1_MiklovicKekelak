@@ -1,6 +1,6 @@
 from header_libs import *
 
-SEED = 69
+SEED = 42
 
 #===| Dataset related |===#
 #==============================================================#
@@ -16,11 +16,13 @@ MIN_MAX_INTERVAL = (0,1) # ma efekt len pre moznost minmax
 
 #===| Model related |===#
 #==============================================================#
-BINARY_CLASSIFICATION = True
+BINARY_CLASSIFICATION = False
 MAX_EPOCHS = 5_000
 BATCH_SIZE = 64
 LEARNING_RATE = 1e-3
 OPTIMIZER = "adam" # options: 'adam' , 'sgd' , 'rms'
+
+PATIENCE: bool = False
 
 PARAMS = {
     "hidden1" : 128,
@@ -59,6 +61,23 @@ def MODEL_STRUCTURE_MULTICLASS(input_dim, output_dim, h1, h2, d1, d2):
         nn.ReLU(),
 
         nn.Linear(h2, output_dim),
+        nn.Sigmoid(),
+    )
+
+# este best optimizer "rms"
+def MODEL_STRUCTURE_MULTICLASS_BEST(input_dim, output_dim):
+    return nn.Sequential(
+        nn.Linear(input_dim, 256),
+        nn.BatchNorm1d(256),
+        nn.ReLU(),
+        nn.Dropout(0.3715881601651548),
+
+        nn.Linear(256, 32),
+        nn.BatchNorm1d(32),
+        nn.ReLU(),
+        nn.Dropout(0.14267416022562088),
+
+        nn.Linear(32, output_dim),
         nn.Sigmoid(),
     )
 

@@ -12,7 +12,6 @@ from Model import SteelNet
 from config.config import *
 
 
-
 def sweep_train():
     # === Initialize run ===
     run = wandb.init(project="ZNEUS_1")
@@ -28,10 +27,28 @@ def sweep_train():
 
     # === Load dataset ===
     df = pd.read_csv(INPUT_FILE)
-    X = df.drop(columns=FAULT_COLUMNS + ["Class"], errors="ignore")
-    y = df["Class"]
 
-    # === Train/val split based on sweep seed ===
+    # --------------------------------------------------
+    # ⚙️ Decide between binary or multiclass mode
+    # --------------------------------------------------
+    binary_mode = BINARY_CLASSIFICATION
+
+    if binary_mode:
+        # Binary: collapse all fault columns into one 0/1 column
+        df["target"] = (df[FAULT_COLUMNS].sum(axis=1) > 0).astype(int)
+        X = df.drop(columns=FAULT_COLUMNS + ["Class"], errors="ignore")
+        y = df["target"]
+        output_dim = 1
+        print("⚙️ Running in BINARY mode.")
+    else:
+        # Multiclass: pick class index with the active fault
+        df["target"] = df[FAULT_COLUMNS].idxmax(axis=1)
+        X = df.drop(columns=FAULT_COLUMNS + ["target"], errors="ignore")
+        y = df["target"]
+        output_dim = len(FAULT_COLUMNS)
+        print("⚙️ Running in MULTICLASS mode.")
+
+    # === Train/val split ===
     X_train_df, X_val_df, y_train_ser, y_val_ser = train_test_split(
         X, y, test_size=0.3, random_state=int(config.seed), stratify=y
     )
@@ -44,8 +61,13 @@ def sweep_train():
     # === Convert to tensors ===
     X_train = torch.tensor(X_train_df.to_numpy(), dtype=torch.float32)
     X_val = torch.tensor(X_val_df.to_numpy(), dtype=torch.float32)
-    y_train = torch.tensor(y_train, dtype=torch.float32)
-    y_val = torch.tensor(y_val, dtype=torch.float32)
+
+    if binary_mode:
+        y_train = torch.tensor(y_train, dtype=torch.float32)
+        y_val = torch.tensor(y_val, dtype=torch.float32)
+    else:
+        y_train = torch.tensor(y_train, dtype=torch.long)
+        y_val = torch.tensor(y_val, dtype=torch.long)
 
     train_ds = TensorDataset(X_train, y_train)
     val_ds = TensorDataset(X_val, y_val)
@@ -66,11 +88,12 @@ def sweep_train():
     # === Initialize model ===
     model = SteelNet(
         input_dim=X_train.shape[1],
-        output_dim=1,
+        output_dim=output_dim,
         params=params,
-        binary=True,
+        binary=binary_mode,
         optimizer=config.optimizer,
-        lr=config.learning_rate
+        lr=config.learning_rate,
+        targets=y_train if not binary_mode else None  # only used for weighted loss
     ).to(device)
 
     # === Train the model ===
@@ -80,7 +103,8 @@ def sweep_train():
         device=device,
         max_epochs=MAX_EPOCHS,
         logger=wandb,
-        logging=True
+        logging=True,
+        patience=10  # optional early stopping
     )
 
     wandb.finish()

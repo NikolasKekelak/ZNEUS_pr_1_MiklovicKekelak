@@ -67,9 +67,9 @@ print(y_train)
 model = None
 
 if BINARY_CLASSIFICATION:
-    model = SteelNet(X_train.shape[1], 1, PARAMS,binary=True).to(device)
+    model = SteelNet(X_train.shape[1], 1, PARAMS,binary=True,patience=False).to(device)
 else:
-    model = SteelNet(X_train.shape[1], len(encoder.classes_),PARAMS, binary=False, targets=y_train ).to(device)
+    model = SteelNet(X_train.shape[1], len(encoder.classes_),PARAMS, binary=False, targets=y_train,patience=False ).to(device)
 
 
 
@@ -87,7 +87,6 @@ best_model, best_val_acc = model.fit(
     device=device,
     max_epochs=MAX_EPOCHS,
 )
-
 #==============================================================#
 
 # === Test Evaluation === #
