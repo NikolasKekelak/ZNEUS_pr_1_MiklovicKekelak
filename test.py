@@ -14,7 +14,7 @@ torch.backends.cudnn.benchmark = False
 #==============================================================#
 
 
-df = pd.read_csv("../faults_reduced.csv")
+df = pd.read_csv("../faults_reduced_normalized.csv")
 
 # --------------- CLASSIFICATION MODE SWITCH ---------------
 
@@ -35,11 +35,6 @@ else:
     df["target"] = df[fault_columns].idxmax(axis=1)
     X = df.drop(columns=fault_columns + ["target"])
     y = df["target"]
-
-# Create and fit
-scaler = get_scaler()
-X_scaled = scaler.fit_transform(X)
-
 
 encoder = LabelEncoder()
 y_encoded = encoder.fit_transform(y)
