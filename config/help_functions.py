@@ -1,6 +1,7 @@
 
 from header_libs import *
 from config.config import *
+
 #===| Help functions |===#
 #==============================================================#
 
@@ -31,6 +32,9 @@ def get_optimizer(model, type :str, lr):
         raise ValueError(f"Unknown type: {type}")
 
 #==============================================================#
+
+
+#===| Function for evaluation of current configuration (that rhymes lol) |===#
 def evaluate(model, loader, criterion, device, binary=False):
     model.eval()
     total_loss, correct = 0, 0
@@ -62,7 +66,7 @@ def evaluate(model, loader, criterion, device, binary=False):
             all_preds.extend(predicted.cpu().numpy().tolist())
             all_labels.extend(labels.cpu().numpy().tolist())
 
-    # ----- Metrics -----
+    #===| Nieco som tu chcel napisat ale sry uz nepamatam |===#
     avg_loss = total_loss / len(loader.dataset)
     avg_acc = correct / len(loader.dataset)
 
@@ -73,5 +77,62 @@ def evaluate(model, loader, criterion, device, binary=False):
 
     return avg_loss, avg_acc, prec, rec, f1
 
+#==============================================================#
+def split(path: str, binary: bool, data_split: float, both=0):
+    df = pd.read_csv(path)
+
+    # ===| CLASSIFICATION MODE SWITCH |===#
+    if binary:
+        # ===| Binary classification |===#
+        X = df.drop(columns=FAULT_COLUMNS + ["Class"], errors="ignore")
+
+        # if “Class” exists already as {0,1}, use it directly
+        if "Class" in df.columns:
+            y = df["Class"].astype(int)
+        else:
+            # otherwise create it by combining all fault columns
+            y = (df[FAULT_COLUMNS].sum(axis=1) > 0).astype(int)
+
+    else:
+        # ===| Multiclass classification |===#
+        if both !=0 and "Class" in df.columns:
+            df.drop(["Class"], axis=1, inplace=True)
+
+        # pick the column name (fault type) with the highest value per row
+        df["target"] = df[FAULT_COLUMNS].idxmax(axis=1)
+        X = df.drop(columns=FAULT_COLUMNS + ["target"])
+        y = df["target"]
+
+        # Encode textual fault labels into integers
+        encoder = LabelEncoder()
+        y = encoder.fit_transform(y)
+
+    # ===| Train / Val split |===#
+    X_train, X_val, y_train, y_val = train_test_split(
+        X, y,
+        test_size=1.0 - data_split,
+        random_state=int(SEED),
+        stratify=y
+    )
+
+    # ===| Convert to torch tensors |===#
+    X_train = torch.tensor(X_train.to_numpy(), dtype=torch.float32)
+    X_val   = torch.tensor(X_val.to_numpy(), dtype=torch.float32)
+
+    if binary:
+        y_train = torch.tensor(np.array(y_train), dtype=torch.float32)
+        y_val   = torch.tensor(np.array(y_val), dtype=torch.float32)
+    else:
+        y_train = torch.tensor(np.array(y_train), dtype=torch.long)
+        y_val   = torch.tensor(np.array(y_val), dtype=torch.long)
+
+    # ===| Create DataLoaders |===#
+    train_ds = TensorDataset(X_train, y_train)
+    val_ds   = TensorDataset(X_val, y_val)
+
+    train_loader = DataLoader(train_ds, batch_size=BATCH_SIZE, shuffle=True)
+    val_loader   = DataLoader(val_ds, batch_size=BATCH_SIZE)
+
+    return X_train, X_val, y_train, y_val, train_loader, val_loader, y
 
 #==============================================================#

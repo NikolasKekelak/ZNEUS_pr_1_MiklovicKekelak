@@ -115,7 +115,6 @@ class SteelNet(nn.Module):
             logger,
             logging: bool,
             console_output: bool = True,
-            patience: int = 10  # <--- new parameter
             ):
 
         best_model_state = None
@@ -142,15 +141,19 @@ class SteelNet(nn.Module):
                     "epochs_no_improve": epochs_no_improve
                 })
 
-            if val_acc > best_val_acc + 1e-6:  # small tolerance to avoid float noise
+            if val_acc > best_val_acc + 1e-6:
                 best_val_acc = val_acc
                 best_model_state = self.state_dict().copy()
-                epochs_no_improve = 0  # reset counter
+                epochs_no_improve = 0
             else:
                 epochs_no_improve += 1
 
             if epochs_no_improve >= self.patience_counter and self.patience:
                 break
+
+            if console_output and epoch % 100 :
+                print(f"Epoch {epoch + 1}/{max_epochs}")
+                print(f"Best val Acc: {best_val_acc}")
 
         return best_model_state, best_val_acc
 

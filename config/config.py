@@ -24,6 +24,7 @@ OPTIMIZER = "adam" # options: 'adam' , 'sgd' , 'rms'
 
 PATIENCE: bool = False
 PATIENCE_COUNTER = 500
+
 PARAMS = {
     "hidden1" : 128,
     "hidden2" : 64,
@@ -81,6 +82,22 @@ def MODEL_STRUCTURE_MULTICLASS_BEST(input_dim, output_dim):
         nn.Sigmoid(),
     )
 
+# este best optimizer "rms"
+def MODEL_STRUCTURE_BINARY_BEST(input_dim, output_dim):
+    return nn.Sequential(
+        nn.Linear(input_dim, 256),
+        nn.BatchNorm1d(256),
+        nn.ReLU(),
+        nn.Dropout(0.3715881601651548),
+
+        nn.Linear(256, 32),
+        nn.BatchNorm1d(32),
+        nn.ReLU(),
+        nn.Dropout(0.14267416022562088),
+
+        nn.Linear(32, output_dim),
+        nn.Sigmoid(),
+    )
 
 #==============================================================#
 

@@ -1,19 +1,11 @@
-# test_sweep.py
-import random
-import numpy as np
-import torch
-import pandas as pd
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder
-from torch.utils.data import TensorDataset, DataLoader
-
+import header_libs
 import wandb
 from Model import SteelNet
 from config.config import *
-
+from config.help_functions import *
 
 def sweep_train():
-    # === Initialize run ===
+    #===| Initialize run |===#
     run = wandb.init(project="ZNEUS_1")
     config = wandb.config
 
@@ -25,57 +17,18 @@ def sweep_train():
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
-    # === Load dataset ===
-    df = pd.read_csv(INPUT_FILE)
+    #====| TU JE CONFIG PRE TOTO SOWYYYY |===#
+    #===| Jedno predom dane co testujeme|====#
+    binary_mode = False
+    BOTH=1
+    #=======================================1#
 
-    # --------------------------------------------------
-    # ⚙️ Decide between binary or multiclass mode
-    # --------------------------------------------------
-    binary_mode = BINARY_CLASSIFICATION
-
-    if binary_mode:
-        # Binary: collapse all fault columns into one 0/1 column
-        df["target"] = (df[FAULT_COLUMNS].sum(axis=1) > 0).astype(int)
-        X = df.drop(columns=FAULT_COLUMNS + ["Class"], errors="ignore")
-        y = df["target"]
-        output_dim = 1
-    else:
-        # Multiclass: pick class index with the active fault
-        df["target"] = df[FAULT_COLUMNS].idxmax(axis=1)
-        X = df.drop(columns=FAULT_COLUMNS + ["target"], errors="ignore")
-        y = df["target"]
-        output_dim = len(FAULT_COLUMNS)
-
-    # === Train/val split ===
-    X_train_df, X_val_df, y_train_ser, y_val_ser = train_test_split(
-        X, y, test_size=1.0-DATA_SPLIT, random_state=int(config.seed), stratify=y
-    )
-
-    # === Encode labels ===
-    encoder = LabelEncoder()
-    y_train = encoder.fit_transform(y_train_ser)
-    y_val = encoder.transform(y_val_ser)
-
-    # === Convert to tensors ===
-    X_train = torch.tensor(X_train_df.to_numpy(), dtype=torch.float32)
-    X_val = torch.tensor(X_val_df.to_numpy(), dtype=torch.float32)
-
-    if binary_mode:
-        y_train = torch.tensor(y_train, dtype=torch.float32)
-        y_val = torch.tensor(y_val, dtype=torch.float32)
-    else:
-        y_train = torch.tensor(y_train, dtype=torch.long)
-        y_val = torch.tensor(y_val, dtype=torch.long)
-
-    train_ds = TensorDataset(X_train, y_train)
-    val_ds = TensorDataset(X_val, y_val)
-
-    train_loader = DataLoader(train_ds, batch_size=int(config.batch_size), shuffle=True)
-    val_loader = DataLoader(val_ds, batch_size=int(config.batch_size))
+    X_train, X_val, y_train, y_val, train_loader, val_loader, y = (
+        split("faults_reduced_normalized.csv", binary_mode, DATA_SPLIT, BOTH ))
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # === Prepare model parameters ===
+    #===| Prepare model parameters |===#
     params = {
         "hidden1": int(config.hidden1),
         "hidden2": int(config.hidden2),
@@ -86,12 +39,13 @@ def sweep_train():
     # === Initialize model ===
     model = SteelNet(
         input_dim=X_train.shape[1],
-        output_dim=output_dim,
+        output_dim=1 if binary_mode else 6+BOTH,
         params=params,
         binary=binary_mode,
         optimizer=config.optimizer,
         lr=config.learning_rate,
-        targets=y_train if not binary_mode else None  # only used for weighted loss
+        targets=y_train if not binary_mode else None,
+        patience_counter=100
     ).to(device)
 
     # === Train the model ===
@@ -102,7 +56,8 @@ def sweep_train():
         max_epochs=MAX_EPOCHS,
         logger=wandb,
         logging=True,
-        patience=10  # optional early stopping
+        console_output=False,
+
     )
 
     wandb.finish()
