@@ -18,12 +18,12 @@ df = pd.read_csv("faults_reduced_normalized.csv")
 #===| CLASSIFICATION MODE SWITCH |===#
 #==============================================================#
 if BINARY_CLASSIFICATION:
-    # Binary classification: 0 = no fault, 1 = any fault
     X = df.drop(columns=FAULT_COLUMNS + ["Class"], errors="ignore")
     y = df["Class"].astype(int)
 
+#===| Multiclass |===#
 else:
-    # Multiclass classification
+
     if "Class" in df.columns:
         df.drop(["Class"], axis=1, inplace=True)
 
