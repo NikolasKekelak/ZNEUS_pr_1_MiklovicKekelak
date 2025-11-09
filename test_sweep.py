@@ -17,7 +17,7 @@ def sweep_train():
     run = wandb.init(project="ZNEUS_1")
     config = wandb.config
 
-    # === Seed everything for reproducibility ===
+    #===| Seed setting |===#
     random.seed(config.seed)
     np.random.seed(config.seed)
     torch.manual_seed(config.seed)
@@ -39,18 +39,16 @@ def sweep_train():
         X = df.drop(columns=FAULT_COLUMNS + ["Class"], errors="ignore")
         y = df["target"]
         output_dim = 1
-        print("⚙️ Running in BINARY mode.")
     else:
         # Multiclass: pick class index with the active fault
         df["target"] = df[FAULT_COLUMNS].idxmax(axis=1)
         X = df.drop(columns=FAULT_COLUMNS + ["target"], errors="ignore")
         y = df["target"]
         output_dim = len(FAULT_COLUMNS)
-        print("⚙️ Running in MULTICLASS mode.")
 
     # === Train/val split ===
     X_train_df, X_val_df, y_train_ser, y_val_ser = train_test_split(
-        X, y, test_size=0.3, random_state=int(config.seed), stratify=y
+        X, y, test_size=1.0-DATA_SPLIT, random_state=int(config.seed), stratify=y
     )
 
     # === Encode labels ===

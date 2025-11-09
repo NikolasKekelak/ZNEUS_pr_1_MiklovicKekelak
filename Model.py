@@ -10,13 +10,16 @@ class SteelNet(nn.Module):
                  optimizer: str = OPTIMIZER,
                  lr=LEARNING_RATE,
                  targets=None,
-                 patience=True,):
+                 patience=True,
+                 patience_counter=10_000,
+                 ):
 
         super().__init__()
         self.patience = patience
+        self.patience_counter = patience_counter
         self.binary = binary
 
-        # === Build network ===
+        #===| Build network |===#
         if self.binary:
             self.net = MODEL_STRUCTURE_BINARY(
                         input_dim,
@@ -38,17 +41,13 @@ class SteelNet(nn.Module):
                         d2=params["dropout2"],
                     )
 
-            # === Auto-compute class weights if targets are provided ===
             if targets is not None:
                 unique, counts = torch.unique(targets, return_counts=True)
                 counts = counts.float()
 
-                # inverse frequency
-                weights = 1.0 / counts
-                weights = weights / weights.sum()
 
-                # create weight vector sorted by class index
-                # so that weight[class_id] is correct
+                weights = 1.0 / counts
+
                 weight_vector = torch.zeros(output_dim)
                 for cls, w in zip(unique, weights):
                     weight_vector[int(cls.item())] = w
@@ -58,7 +57,7 @@ class SteelNet(nn.Module):
             else:
                 self.criterion = nn.CrossEntropyLoss()
 
-        # === Optimizer ===
+        #===| Optimizer |===#
         self.optimizer = get_optimizer(self, optimizer, lr)
 
 
@@ -66,9 +65,8 @@ class SteelNet(nn.Module):
         return self.net(x)
 
     def train_step(self, xb, yb):
-        # ---- reshape target for binary classification ----
         if self.binary:
-            yb = yb.float().unsqueeze(1)  # [batch] -> [batch,1]
+            yb = yb.float().unsqueeze(1)
 
         preds = self(xb)
         loss = self.criterion(preds, yb)
@@ -99,7 +97,6 @@ class SteelNet(nn.Module):
             total_loss += loss * xb.size(0)
             total_correct += correct
 
-        # epoch metrics
         avg_loss = total_loss / len(loader.dataset)
         avg_acc = total_correct / len(loader.dataset)
         return avg_loss, avg_acc
@@ -123,14 +120,14 @@ class SteelNet(nn.Module):
 
         best_model_state = None
         best_val_acc = 0.0
-        epochs_no_improve = 0  # <--- counter
+        epochs_no_improve = 0
 
         for epoch in range(max_epochs):
 
             train_loss, train_acc = self.train_epoch(train_loader, device)
             val_loss, val_acc, prec, rec, f1 = self.validate_epoch(val_loader, device)
 
-            # 🪵 Logging
+            #===|  🪵  |===#
             if logging:
                 logger.log({
                     "epoch": epoch,
@@ -145,7 +142,6 @@ class SteelNet(nn.Module):
                     "epochs_no_improve": epochs_no_improve
                 })
 
-            # 📉 Early stopping logic
             if val_acc > best_val_acc + 1e-6:  # small tolerance to avoid float noise
                 best_val_acc = val_acc
                 best_model_state = self.state_dict().copy()
@@ -153,10 +149,9 @@ class SteelNet(nn.Module):
             else:
                 epochs_no_improve += 1
 
-            if epochs_no_improve >= 500 and self.patience:
+            if epochs_no_improve >= self.patience_counter and self.patience:
                 break
 
-        print("Neural Network stopped neural networking 🧠❌")
         return best_model_state, best_val_acc
 
 

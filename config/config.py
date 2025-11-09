@@ -23,7 +23,7 @@ LEARNING_RATE = 1e-3
 OPTIMIZER = "adam" # options: 'adam' , 'sgd' , 'rms'
 
 PATIENCE: bool = False
-
+PATIENCE_COUNTER = 500
 PARAMS = {
     "hidden1" : 128,
     "hidden2" : 64,
