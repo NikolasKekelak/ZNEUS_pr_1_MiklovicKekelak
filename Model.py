@@ -16,7 +16,7 @@ class SteelNet(nn.Module):
         # === Build network ===
         if self.binary:
             self.net = MODEL_STRUCTURE_BINARY(input_dim, output_dim)
-            self.criterion = nn.BCELoss()
+            self.criterion = nn.BCEWithLogitsLoss()
 
         else:
             self.net = MODEL_STRUCTURE_MULTICLASS(input_dim, output_dim)

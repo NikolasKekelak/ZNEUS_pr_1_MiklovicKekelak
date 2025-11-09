@@ -38,35 +38,43 @@ def evaluate(model, loader, criterion, device, binary=False):
 
     with torch.no_grad():
         for xb, yb in loader:
-            xb, yb = xb.to(device), yb.to(device)
+            xb = xb.to(device)
+            yb = yb.to(device)
 
-            # --- BINARY MODE: fix shape of target ---
+            # --- Fix target shape for binary classification ---
             if binary:
-                yb = yb.float().unsqueeze(1)   # shape [batch] -> [batch,1]
+                yb = yb.float().view(-1, 1)    # shape [batch] → [batch,1]
 
             preds = model(xb)
             loss = criterion(preds, yb)
             total_loss += loss.item() * xb.size(0)
 
+            # --- Prediction ---
             if binary:
-                predicted = (torch.sigmoid(preds).squeeze(1) > 0.5).int()
+                # raw logits → sigmoid → threshold
+                probs = torch.sigmoid(preds)
+                predicted = (probs > 0.5).int().view(-1)
+                labels = yb.int().view(-1)
             else:
-                predicted = preds.argmax(1)
+                predicted = preds.argmax(dim=1).view(-1)
+                labels = yb.view(-1)
 
-            # Flatten for comparison
-            all_preds.extend(predicted.cpu().numpy().squeeze())
-            all_labels.extend(yb.cpu().numpy().squeeze())
-            correct += (predicted.squeeze() == yb.squeeze()).sum().item()
+            # accumulate stats
+            correct += (predicted == labels).sum().item()
+
+            all_preds.extend(predicted.cpu().numpy().tolist())
+            all_labels.extend(labels.cpu().numpy().tolist())
+
+    # ----- Metrics -----
+    avg_loss = total_loss / len(loader.dataset)
+    avg_acc = correct / len(loader.dataset)
 
     avg = 'binary' if binary else 'macro'
-
-    loss = total_loss / len(loader.dataset)
-    acc = correct / len(loader.dataset)
     prec = precision_score(all_labels, all_preds, average=avg, zero_division=0)
-    rec = recall_score(all_labels, all_preds, average=avg, zero_division=0)
-    f1 = f1_score(all_labels, all_preds, average=avg, zero_division=0)
+    rec  = recall_score(all_labels, all_preds, average=avg, zero_division=0)
+    f1   = f1_score(all_labels, all_preds, average=avg, zero_division=0)
 
-    return loss, acc, prec, rec, f1
+    return avg_loss, avg_acc, prec, rec, f1
 
 
 #==============================================================#

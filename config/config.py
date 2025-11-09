@@ -16,7 +16,7 @@ MIN_MAX_INTERVAL = (0,1) # ma efekt len pre moznost minmax
 
 #===| Model related |===#
 #==============================================================#
-BINARY_CLASSIFICATION = False
+BINARY_CLASSIFICATION = True
 MAX_EPOCHS = 5_000
 BATCH_SIZE = 64
 LEARNING_RATE = 1e-3
@@ -51,6 +51,7 @@ def MODEL_STRUCTURE_BINARY(input_dim, output_dim):
         nn.ReLU(),
 
         nn.Linear(64, output_dim),
+        nn.Sigmoid()
     )
 
 #==============================================================#
