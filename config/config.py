@@ -88,12 +88,12 @@ def MODEL_STRUCTURE_BINARY_BEST(input_dim, output_dim):
         nn.Linear(input_dim, 256),
         nn.BatchNorm1d(256),
         nn.ReLU(),
-        nn.Dropout(0.3715881601651548),
+        nn.Dropout(0.15172197880732577),
 
         nn.Linear(256, 32),
         nn.BatchNorm1d(32),
         nn.ReLU(),
-        nn.Dropout(0.14267416022562088),
+        nn.Dropout(0.0612977644397828),
 
         nn.Linear(32, output_dim),
         nn.Sigmoid(),

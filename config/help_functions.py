@@ -2,6 +2,7 @@
 from header_libs import *
 from config.config import *
 
+
 #===| Help functions |===#
 #==============================================================#
 
@@ -95,7 +96,7 @@ def split(path: str, binary: bool, data_split: float, both=0):
 
     else:
         # ===| Multiclass classification |===#
-        if both !=0 and "Class" in df.columns:
+        if both ==0 and "Class" in df.columns:
             df.drop(["Class"], axis=1, inplace=True)
 
         # pick the column name (fault type) with the highest value per row
@@ -134,5 +135,36 @@ def split(path: str, binary: bool, data_split: float, both=0):
     val_loader   = DataLoader(val_ds, batch_size=BATCH_SIZE)
 
     return X_train, X_val, y_train, y_val, train_loader, val_loader, y
+
+#==============================================================#
+def plot_confusion_matrix(model, val_loader, device, binary=True):
+    model.eval()
+    y_true, y_pred = [], []
+
+    with torch.no_grad():
+        for xb, yb in val_loader:
+            xb, yb = xb.to(device), yb.to(device)
+            preds = model(xb)
+
+            if binary:
+                preds = (preds.squeeze() > 0.5).int()
+            else:
+                preds = preds.argmax(dim=1)
+
+            y_true.extend(yb.cpu().numpy().tolist())
+            y_pred.extend(preds.cpu().numpy().tolist())
+
+    # compute confusion matrix
+    cm = confusion_matrix(y_true, y_pred, normalize='true') * 100
+
+    # plot
+    disp = ConfusionMatrixDisplay(confusion_matrix=cm)
+    fig, ax = plt.subplots(figsize=(5, 4))
+    disp.plot(cmap="Blues", ax=ax, colorbar=True, values_format=".1f")
+    ax.set_title("Confusion Matrix (%)")
+    plt.tight_layout()
+    plt.show()
+
+    return cm
 
 #==============================================================#
