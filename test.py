@@ -14,17 +14,14 @@ torch.backends.cudnn.benchmark = False
 #==============================================================#
 
 
-df = pd.read_csv("../faults_reduced_normalized.csv")
+df = pd.read_csv("faults_reduced_normalized.csv")
 
-# --------------- CLASSIFICATION MODE SWITCH ---------------
-
-fault_columns = ['V28', 'V29', 'V30', 'V31', 'V32', 'V33']
-
+#===| CLASSIFICATION MODE SWITCH |===#
 criterion = None
 
 if BINARY_CLASSIFICATION:
-    df["target"] = (df[fault_columns].sum(axis=1) > 0).astype(int)
-    X = df.drop(columns=fault_columns + ["Class", "target"], errors="ignore")
+    df["target"] = (df[FAULT_COLUMNS].sum(axis=1) > 0).astype(int)
+    X = df.drop(columns=FAULT_COLUMNS + ["Class"], errors="ignore")
     y = df["target"]
     criterion = nn.BCELoss()
 else:
@@ -32,22 +29,24 @@ else:
     if "Class" in df.columns:
         df.drop(["Class"], axis=1, inplace=True)
 
-    df["target"] = df[fault_columns].idxmax(axis=1)
-    X = df.drop(columns=fault_columns + ["target"])
+    df["target"] = df[FAULT_COLUMNS].idxmax(axis=1)
+    X = df.drop(columns=FAULT_COLUMNS + ["target"])
     y = df["target"]
 
 encoder = LabelEncoder()
 y_encoded = encoder.fit_transform(y)
 
-X_train, X_temp, y_train, y_temp = train_test_split(X_scaled, y_encoded, test_size=0.3, random_state=42, stratify=y_encoded)
-X_val, X_test, y_val, y_test = train_test_split(X_temp, y_temp, test_size=0.5, random_state=42, stratify=y_temp)
+X_train, X_temp, y_train, y_temp = train_test_split(X, y_encoded, test_size=0.3, random_state=SEED, stratify=y_encoded)
+X_val, X_test, y_val, y_test = train_test_split(X_temp, y_temp, test_size=0.5, random_state=SEED, stratify=y_temp)
 
-X_train = torch.tensor(X_train, dtype=torch.float32)
+X_train = torch.tensor(X_train.to_numpy(), dtype=torch.float32)
+X_val   = torch.tensor(X_val.to_numpy(), dtype=torch.float32)
+X_test  = torch.tensor(X_test.to_numpy(), dtype=torch.float32)
+
 y_train = torch.tensor(y_train, dtype=torch.long)
-X_val = torch.tensor(X_val, dtype=torch.float32)
-y_val = torch.tensor(y_val, dtype=torch.long)
-X_test = torch.tensor(X_test, dtype=torch.float32)
-y_test = torch.tensor(y_test, dtype=torch.long)
+y_val   = torch.tensor(y_val, dtype=torch.long)
+y_test  = torch.tensor(y_test, dtype=torch.long)
+
 
 # 3. Dataloaders
 
@@ -60,68 +59,39 @@ val_loader = DataLoader(val_ds, batch_size=BATCH_SIZE)
 test_loader = DataLoader(test_ds, batch_size=BATCH_SIZE)
 
 #===| Preparations |===#
-
+#==============================================================#
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
 model = None
 
 if BINARY_CLASSIFICATION:
-    model = SteelNet(X_train.shape[1], 1).to(device)   # one output neuron
+    model = SteelNet(X_train.shape[1], 1, binary=True).to(device)
 else:
-    model = SteelNet(X_train.shape[1], len(encoder.classes_)).to(device)
+    model = SteelNet(X_train.shape[1], len(encoder.classes_), binary=False, targets=y_train ).to(device)
+
 
 
 best_model = None
-optimizer = get_optimizer(model)
+#==============================================================#
+
 
 #===| Training |===#
-best_val_acc = 0
-train_losses, val_losses = [], []
+#==============================================================#
+best_model, best_val_acc = model.fit(
+    train_loader=train_loader,
+    val_loader=val_loader,
+    logger = run,
+    logging = True,
+    device=device,
+    max_epochs=MAX_EPOCHS,
+)
 
-for epoch in range(MAX_EPOCHS):
-    model.train()
-    total_loss, correct = 0, 0
-
-    for xb, yb in train_loader:
-        xb, yb = xb.to(device), yb.to(device)
-        optimizer.zero_grad()
-        preds = model(xb)
-        loss = criterion(preds, yb)
-        loss.backward()
-        optimizer.step()
-
-        total_loss += loss.item() * xb.size(0)
-        if not BINARY_CLASSIFICATION:
-            correct += (preds.argmax(1) == yb).sum().item()
-        else:
-            correct += ((preds.squeeze() > 0.5).int() == yb.int()).sum().item()
-
-    train_loss = total_loss / len(train_loader.dataset)
-    train_acc = correct / len(train_loader.dataset)
-
-    val_loss, val_acc, prec, rec, f1 = evaluate(model, val_loader, criterion, device, BINARY_CLASSIFICATION)
-
-    run.log({ "training_loss": train_loss,
-              "validation_loss": val_loss,
-              "training_acc": train_acc,
-              "validation_acc": val_acc,
-              "best_validation_acc": best_val_acc,
-              "precission" : prec,
-              "recall" : rec,
-              "f1" : f1,
-        })
-
-    if val_acc > best_val_acc:
-        best_val_acc = val_acc
-        best_model = model.state_dict().copy()
-
-    if epoch % 100 == 0:
-        print(f"Epoch {epoch:04d} | "
-              f"Train: loss={train_loss:.4f}, acc={train_acc:.3f} | "
-              f"Val: loss={val_loss:.4f}, acc={val_acc:.3f}")
+#==============================================================#
 
 # === Test Evaluation === #
-model.load_state_dict(best_model)
-test_loss, test_acc = evaluate(model, test_loader, criterion, device, BINARY_CLASSIFICATION)
-print(f"✅ Test Accuracy: {test_acc:.3f}")
+# #==============================================================#
+#model.load_state_dict(best_model)
+#test_loss, test_acc = evaluate(model, test_loader, criterion, device, BINARY_CLASSIFICATION)
+#print(f"✅ Test Accuracy: {test_acc:.3f}")
+#==============================================================#

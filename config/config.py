@@ -1,12 +1,12 @@
 from header_libs import *
 
-SEED = 42
+SEED = 69
 
 #===| Dataset related |===#
 #==============================================================#
-INPUT_FILE = "../faults.csv"
+INPUT_FILE = "faults_reduced_normalized.csv"
 DATA_SPLIT = 0.70 # DATA_SPILT is how much % is training set
-FAULT_COLUMNS = ['V28', 'V29', 'V30', 'V31', 'V32', 'V33', 'Class']
+FAULT_COLUMNS = ['V28', 'V29', 'V30', 'V31', 'V32', 'V33']
 
 #Normalisation/scaler
 SCALER_TYPE = "minmax"  # options: 'standard', 'minmax', 'robust', 'maxabs', 'quantile', 'power'
@@ -35,6 +35,7 @@ def MODEL_STRUCTURE_MULTICLASS(input_dim, output_dim):
         nn.Dropout(0.1),
 
         nn.Linear(64, output_dim),
+        nn.Sigmoid()
     )
 
 def MODEL_STRUCTURE_BINARY(input_dim, output_dim):
@@ -50,7 +51,6 @@ def MODEL_STRUCTURE_BINARY(input_dim, output_dim):
         nn.ReLU(),
 
         nn.Linear(64, output_dim),
-        nn.Sigmoid()
     )
 
 #==============================================================#
