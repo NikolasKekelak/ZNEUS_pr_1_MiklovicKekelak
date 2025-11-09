@@ -10,6 +10,7 @@ class SteelNet(nn.Module):
                  optimizer: str = OPTIMIZER,
                  lr=LEARNING_RATE,
                  targets=None):
+
         super().__init__()
 
         self.binary = binary
